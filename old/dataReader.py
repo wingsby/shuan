@@ -15,13 +15,13 @@ from astar import HashAstar, plottest
 class dataReader:
     threshold = 15
     mapes = dict()
-    hours = range(3, 21)
+    hours = range(3, 22)
     days = range(1, 6)
     filePath = None
 
     @classmethod
     def setMapes(cls):
-        fname = cls.filePath + "/" + "ForecastDataforTraining_ensmean.csv"
+        fname = cls.filePath + "/" + "ForecastDataforTesting_ensmean.csv"
         data = pd.read_csv(fname, iterator=True)
         for day in cls.days:
             for hour in cls.hours:
@@ -58,35 +58,17 @@ class dataReader:
         self.weatherMap = self.mapes[self.day * 100 + self.hour]
         return self.convertMap()
 
-    def getMaps(self):
-        maps = []
-        for hour in range(3, 21):
-            map = self.mapes[self.day * 100 + hour]
-            map[map < self.threshold] = 0
-            map[map >= self.threshold] = 1
-            maps.append(map)
-        return maps
-
 
 def savePath(node, id, day):
     fileName = dataReader.filePath + "/routSave.csv"
     fileWriter = open(fileName, "a")
-
-    nnode = []
-    nnode.append(node)
-    # todo 可以优化代码吗 多余的循环
-    tmpNode = node.parent
-    while tmpNode:
-        nnode.append(tmpNode)
-        tmpNode = tmpNode.parent
-    for i in range(len(nnode) - 1, -1, -1):
-        # fileWriter.write(
-        #     "%d,%d,%s,%d,%d\n" % (id, day, generateTime(node.__selfCostFunction__()), nnode.x + 1, node.y + 1))
-        # curNode = node.parent
-        # while curNode:
+    fileWriter.write(
+        "%d,%d,%s,%d,%d\n" % (id, day, generateTime(node.__selfCostFunction__()), node.x + 1, node.y + 1))
+    curNode = node.parent
+    while curNode:
         fileWriter.write(
-                "%d,%d,%s,%d,%d\n" % (id, day, generateTime(nnode[i].__selfCostFunction__()), nnode[i].x + 1, nnode[i].y + 1))
-            # curNode = curNode.parent
+            "%d,%d,%s,%d,%d\n" % (id, day, generateTime(curNode.__selfCostFunction__()), curNode.x + 1, curNode.y + 1))
+        curNode = curNode.parent
     fileWriter.close()
 
 
@@ -94,49 +76,6 @@ def generateTime(steps):
     addHour = steps * 2 / 60
     addMinute = steps * 2 % 60
     return "%02d:%02d" % (3 + addHour, addMinute)
-
-
-def regressAstar(startPoint, endPoint, map):
-    # 各小时map
-    HashAstar.init()
-    node = HashAstar.astarMainLoop(startPoint, endPoint, map[0])
-    if not node:
-        return None
-    newStart, hourIdx = checkNode(node, map, 3)
-    nnode = None
-    while not newStart:
-        HashAstar.init()
-        if hourIdx < 0:
-            break
-        nnode = HashAstar.astarMainLoop(newStart, endPoint, map[hourIdx])
-        newStart, hourIdx = checkNode(nnode, map, 3)
-    if nnode:
-        return nnode
-    else:
-        return node
-
-
-def checkNode(node, mapes, delta):
-    # 重排node
-    nnode = []
-    nnode.append(node)
-    # todo 可以优化代码吗 多余的循环
-    tmpNode = node.parent
-    while tmpNode:
-        nnode.append(tmpNode)
-        tmpNode = tmpNode.parent
-    for i in range(len(nnode) - 1, -1, -1):
-        hourIdx = int(nnode[i].__selfCostFunction__() / 30)
-        if hourIdx > 2:
-            pass
-            # print(hourIdx)
-        curMap = mapes[hourIdx]
-        if curMap[nnode[i].x][nnode[i].y] == 1:
-            cNode = nnode[i]
-            for j in (0, delta):
-                cNode = cNode.parent
-            return cNode, hourIdx
-    return None, -1
 
 
 if __name__ == "__main__":
@@ -152,22 +91,21 @@ if __name__ == "__main__":
     count = 0
     for target in range(1, 11):
         for day in range(1, 6):
-            reader = dataReader(day, 3)
+            reader = dataReader(day, 7)
             endPoint = HashAstar.Node(citys[target][1] - 1, citys[target][2] - 1)
             startPoint.__setCost__(0)
             start = time.time()
-            maps = reader.getMaps()
-            # HashAstar.init()
-            # node = HashAstar.astarMainLoop(startPoint, endPoint, map)
-            node = regressAstar(startPoint, endPoint, maps)
+            map = reader.getMap()
+            HashAstar.init()
+            node = HashAstar.astarMainLoop(startPoint, endPoint, map)
             print("耗时：%d 秒" % (time.time() - start))
             if not node:
                 count += 1
                 print("%d 架飞机寻路失败===================================\n========================" % (count))
                 continue
             try:
-                print("路径长度: %d" % node.__selfCostFunction__())
+                # print("路径长度: %d" % node.__selfCostFunction__())
                 savePath(node, target, day)
-                plottest.drawRoute(map, node, startPoint)
+                # plottest.drawRoute(map, node, startPoint)
             except IOError as p:
                 print(p.message)

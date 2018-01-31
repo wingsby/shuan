@@ -20,6 +20,7 @@ class Node:
         self.parent = None
         # g cost
         self.cost = -1
+        self.dis = -1
 
     # G 当前代价
     def __selfCostFunction__(self):
@@ -31,7 +32,8 @@ class Node:
 
     # 曼哈顿距离
     def distance(self, next):
-        return abs(next.x - self.x) + abs(next.y - self.y)
+        self.dis = abs(next.x - self.x) + abs(next.y - self.y)
+        return self.dis
 
     # F = G + H 估计代价未知
     def __costFunction__(self):
@@ -60,7 +62,7 @@ class Node:
     def isReachable(self, next):
         if self.distance(next) == 1 and (
                 0 <= next.x < len(self.worldMap) and 0 <= next.y < len(self.worldMap[0]) and self.worldMap[
-            next.x, next.y] == 0) :
+            next.x, next.y] == 0):
             return True
         else:
             return False
@@ -99,8 +101,8 @@ linkedOpen = []
 
 def astarMainLoop(startPoint, endPoint, worldMap):
     Node.setMap(worldMap)
-    Node.setStart(startPoint)
-    Node.setEnd(endPoint)
+    Node.setStart(Node(startPoint.x, startPoint.y))
+    Node.setEnd(Node(startPoint.x, startPoint.y))
     # print(len(worldMap))
     # print(len(worldMap[0]))
     openDict[startPoint] = startPoint
