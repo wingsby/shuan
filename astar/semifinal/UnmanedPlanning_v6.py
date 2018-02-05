@@ -1,21 +1,24 @@
 # coding:utf-8
 # @Author: wangye
-# @Description:
-# @Date:Created  on 23:19 2018/1/29.
+# @Description: new alogrithm for semi final
+# @Date:Created  on 23:19 2018/2/5.
 # @Modify
 # ======================shaun=======================================
 # -*- coding: utf-8 -*-
 
-import pandas as pd
-import numpy as np
+import os
+import sys
 from datetime import *
-import time
-import sys, os
+
+import numpy as np
+import pandas as pd
+import Tools
+
+from astar.BackRestartModel import BackRestartModel
 
 sys.path.append(os.path.abspath("F\\pywork\\astar"))
-import HashAstar, WeatherMapReader, plottest
-import matplotlib.pyplot as plt
-from LocalOptimalModel import LocalOptimalModel
+from astar import WeatherMapReader, HashAstar
+from astar.LocalOptimalModel import LocalOptimalModel
 
 
 # ==================================================================
@@ -44,15 +47,6 @@ def oneSub(path, target, date_id):
     return sub_df
 
 
-def make_path(node):
-    """根据节点绘制路径"""
-    path = []
-    while node:
-        path.append((node.x, node.y))
-        node = node.parent
-    return path[::-1]
-
-
 def changeRegionMap(sx, sy, ex, ey, daymaps, changehour):
     """改变起点周围30步内的map"""
     newMap = np.zeros((548, 421))
@@ -71,9 +65,54 @@ def changeRegionMap(sx, sy, ex, ey, daymaps, changehour):
     return newMap
 
 
+def PathPlaning(sx, sy, ex, ey, target, day, daymaps):
+    path = []
+    startPoint = HashAstar.Node(sx, sy)
+    endPoint = HashAstar.Node(ex, ey)
+    startPoint.__setCost__(0)
+    # first try A STAR
+    HashAstar.init()
+    node = HashAstar.astarMainLoop(startPoint, endPoint, daymaps[0])
+    # check nodes until break;
+    failNode = checkFailNodes(node)
+    # try backresatart
+    brm_node = failNode
+    while not brm_node:
+        failNode = checkFailNodes(brm_node)
+        HashAstar.init()
+        brm = BackRestartModel(failNode, endPoint, daymaps)
+        brm_node = brm.doBackAndPlan()
+        if brm_node.__eq__(endPoint):
+            return brm_node
+            # brm_node为None，说明无法完成搜索，此时天气条件较为恶劣
+            # 应可采用局部最优模型，考虑2个时次
+            # todo tomorrow
+            # LocalOptimalModel()
+
+
+
+
+
+            # 失败节点
+
+
+def checkFailNodes(node):
+    path = Tools.make_path(node)
+    index = 0
+    while index < len(path):
+        xid, yid = path[index][0], path[index][1]
+        hour = 3 + int(index / 30)
+        minute = index % 30
+        if hour > 20:
+            break
+        if daymaps[hour - 3][xid, yid] == 1:
+            return path[index]
+        index += 1
+
+
 def findPath(sx, sy, ex, ey, target, day, daymaps, backStep):
     """生成A-STAR 路径"""
-    path=[]
+    path = []
     startPoint = HashAstar.Node(sx, sy)
     endPoint = HashAstar.Node(ex, ey)
     startPoint.__setCost__(0)
@@ -84,49 +123,12 @@ def findPath(sx, sy, ex, ey, target, day, daymaps, backStep):
         node = model.doFindPath(houridx, now, endPoint, daymaps)
         if not node:
             return None
-        new_path = make_path(node)
+        new_path = Tools.make_path(node)
         path = path + new_path
         if node.__eq__(endPoint):
             return path
-        now=HashAstar.Node(node.x,node.y)
+        now = HashAstar.Node(node.x, node.y)
         now.__setCost__(0)
-
-    # 对第一次得到的best-path进行检测，如果有碰到bad-weather，那么记录该点为新的start，
-    # end为原来的end
-    # 根据新的start和end重新寻路（这时候用start所在时次的障碍）
-    # 把新的路径替换原来的路径
-    # index = 0
-    # while index < len(path):
-    #     xid, yid = path[index][0], path[index][1]
-    #     hour = 3 + int(index / 30)
-    #     minute = index % 30
-    #     if hour > 20:
-    #         break
-    #     if daymaps[hour - 3][xid, yid] == 1:
-    #         if index == 0:  # todo 在起点就遇到坏天气怎么处理？
-    #             return []
-    #         else:  # 如果是在1个小时内退backStep步躲避
-    #             if minute == 0:
-    #                 backStep = 30
-    #                 changehour = hour - 1
-    #             else:
-    #                 backStep = minute
-    #                 changehour = hour
-    #             new_sx, new_sy = path[index - backStep][0], path[index - backStep][1]
-    #             startPoint = HashAstar.Node(new_sx, new_sy)
-    #             endPoint = HashAstar.Node(ex, ey)
-    #             startPoint.__setCost__(0)
-    #             # A-star寻路
-    #             HashAstar.init()
-    #             node = HashAstar.astarMainLoop(startPoint, endPoint, changeRegionMap(new_sx, new_sy, ex, ey, daymaps,
-    #                                                                                  changehour))  # daymaps[hour-3]
-    #             new_path = make_path(node)
-    #             if not new_path:
-    #                 return new_path
-    #             path = path[0:index - backStep] + new_path
-    #             index = index - backStep
-    #     index += 1
-    # return np.array(path) + 1
 
 
 # =================================================================================================
@@ -134,7 +136,8 @@ def findPath(sx, sy, ex, ey, target, day, daymaps, backStep):
 if __name__ == "__main__":
     start = time.time()
     # filePath = "K:\\pywork\\shaun\\"
-    filePath = "I:\\python work\\shuan\\pancy\\"
+    # filePath = "I:\\python work\\shuan\\pancy\\"
+    filePath = "E:\\machineLearningData\\shaun\\"
     # city = pd.read_csv(filePath + "input\\CityData.csv")
     city = pd.read_csv(filePath + "CityData.csv")
     city_array = city.values - 1

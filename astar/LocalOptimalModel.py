@@ -20,6 +20,7 @@ TRY_ANGLES_CNT = 12
 TRY_RANGE = 6
 
 
+# 该模型基本思路是以下一时次为好天的
 class LocalOptimalModel:
     tryFind = 0
 
@@ -39,8 +40,9 @@ class LocalOptimalModel:
                                 int(round(math.asin(1.0 / (HOUR_STEP - RANGE * (rtimes - 1))) * 10000))):
                 alpha = talpha / 10000.
                 if 0 <= int(r * round(math.sin(alpha))) + now.x < X_DIM and 0 <= int(
-                        r * round(math.cos(alpha))) + now.y < Y_DIM:
-                    node = HashAstar.Node(int(r * round(math.cos(alpha))) + now.x, int(r * round(math.sin(alpha))) + now.y)
+                                r * round(math.cos(alpha))) + now.y < Y_DIM:
+                    node = HashAstar.Node(int(r * round(math.cos(alpha))) + now.x,
+                                          int(r * round(math.sin(alpha))) + now.y)
                     zone.append(node)
         rzone = list(set(zone))
         nextMap = maps[hourIdx + 1]
@@ -54,7 +56,6 @@ class LocalOptimalModel:
                 self.findOptimalZone(self, hourIdx, now, end, maps, atimes + 1, rtimes)
             else:
                 self.findOptimalZone(self, hourIdx, now, end, maps, atimes, rtimes + 1)
-
 
     def sortedDictKeys(self, adict):
         keys = adict.keys()

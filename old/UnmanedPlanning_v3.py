@@ -6,14 +6,15 @@
 #======================shaun=======================================
 # -*- coding: utf-8 -*-
 
-import pandas as pd
-import numpy as np
+import os
+import sys
 from datetime import *
-import time
-import sys,os
+
+import numpy as np
+import pandas as pd
+
 sys.path.append(os.path.abspath("F\\pywork\\astar"))
-import HashAstar, WeatherMapReader, plottest
-import matplotlib.pyplot as plt
+from astar import WeatherMapReader, HashAstar
 
 
 # ==================================================================
@@ -69,7 +70,7 @@ def changeRegionMap(sx,sy,ex,ey,daymaps,changehour):
 def findPath(sx,sy,ex,ey,target, day, daymaps, backStep):
     """生成A-STAR 路径"""
     startPoint = HashAstar.Node(sx, sy)
-    endPoint = HashAstar.Node(ex,ey)
+    endPoint = HashAstar.Node(ex, ey)
     startPoint.__setCost__(0)
 
     # A-star寻路
@@ -100,12 +101,12 @@ def findPath(sx,sy,ex,ey,target, day, daymaps, backStep):
                     backStep = minute
                     changehour = hour
                 new_sx, new_sy = path[index - backStep][0], path[index - backStep][1]
-                startPoint = HashAstar.Node(new_sx,new_sy)
+                startPoint = HashAstar.Node(new_sx, new_sy)
                 endPoint = HashAstar.Node(ex, ey)
                 startPoint.__setCost__(0)
                 # A-star寻路
                 HashAstar.init()
-                node = HashAstar.astarMainLoop(startPoint, endPoint, changeRegionMap(new_sx,new_sy,ex,ey,daymaps,changehour)) # daymaps[hour-3]
+                node = HashAstar.astarMainLoop(startPoint, endPoint, changeRegionMap(new_sx, new_sy, ex, ey, daymaps, changehour)) # daymaps[hour-3]
                 new_path = make_path(node)
                 if not new_path:
                     return new_path

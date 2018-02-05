@@ -5,9 +5,9 @@
 # @Modify
 # ======================shaun=======================================
 import sys
-
-import HashAstar
 import time
+
+from astar import HashAstar
 
 sys.path.append("C:\Python27\Lib\site-packages")
 import numpy as np
