@@ -15,8 +15,8 @@ class Node:
     end = None
 
     def __init__(self, xi, yi):
-        self.x = xi
-        self.y = yi
+        self.x = int(xi)
+        self.y = int(yi)
         self.parent = None
         # g cost
         self.cost = -1
@@ -61,8 +61,7 @@ class Node:
 
     def isReachable(self, next):
         if self.distance(next) == 1 and (
-                0 <= next.x < len(self.worldMap) and 0 <= next.y < len(self.worldMap[0]) and self.worldMap[
-            next.x, next.y] == 0):
+                0 <= next.x < len(self.worldMap) and 0 <= next.y < len(self.worldMap[0]) and self.worldMap[next.x, next.y] == 0):
             return True
         else:
             return False

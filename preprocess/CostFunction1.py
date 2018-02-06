@@ -5,7 +5,8 @@ import time
 import pandas as pd
 import numpy as np
 
-def read_data(fname,head):
+
+def read_data(fname, head):
     """ read data """
     data = pd.read_csv(fname, iterator=True, header=head)
     loop = True
@@ -21,11 +22,12 @@ def read_data(fname,head):
     df = pd.concat(chunks, ignore_index=True)
     return df
 
+
 class dataReader:
     threshold = 15
     mapes = dict()
     hours = range(3, 21)
-    days = range(6, 11) #to do change days
+    days = range(6, 11)  # to do change days
     fileName = None
 
     @classmethod
@@ -69,63 +71,68 @@ class dataReader:
         return maps
 
 
-def is_crash(path,weather):
+def is_crash(path, weather):
     """判断飞机是否坠毁"""
     for x, y, time in path.loc[:, ['xid', 'yid', 'time']].values:
-        hour=int(time.split(':')[0])
-        wind=weather[hour-3][x-1,y-1]
+        hour = int(time.split(':')[0])
+        wind = weather[hour - 3][x - 1, y - 1]
+        # rain=weather[hour-3][x-1,y-1]
         # wind=weather[weather['xid'].isin([x]) &
         #              weather['yid'].isin([y]) &
         #              weather['hour'].isin([hour])].wind.values
 
-        if wind ==1:
+        if wind == 1:
             return True
     return False
+
 
 ################################################################
 if __name__ == "__main__":
 
-    filePath="F:\\pywork\\shaun\\"
+    # filePath="F:\\pywork\\shaun\\"
+    filePath = "E:\\machineLearningData\\shaun\\test\\"
     # 存储
     start = time.time()
+    days=range(6,11)
 
     # weather = read_data("F:\\pywork\\shaun\\input\\In_situMeasurementforTraining_201712.csv",0)
     # path = read_data(filePath+"output\\train\\v2_A_star_waitBadWeather15.csv",None)
     # score_file=open(filePath+"output\\train\\v2_A_star_waitBadWeather15_score.txt", "w+")
-    dataReader.fileName = "F:\\pywork\\shaun\\input\\ForecastDataforTesting_ensmean.csv"
+    # dataReader.fileName = "F:\\pywork\\shaun\\input\\ForecastDataforTesting_ensmean.csv"
+    dataReader.fileName = filePath + "true_201802.csv"
     # dataReader.fileName = "F:\\pywork\\shaun\\input\\In_situMeasurementforTraining_201712.csv"
-    dataReader.days = range(6,11)
+    dataReader.days = days
     dataReader.setMapes()
-    path = read_data("F:\\pywork\\shaun\\output\\test_with_everyhour_weather_regionIn30Step_back2.csv", None)
-    score_file = open("F:\\pywork\\shaun\\output\\test_with_everyhour_weather_regionIn30Step_back2_score.txt", "w+")
 
+    path = read_data(filePath + "out.csv", None)
+    score_file = open(filePath + "scores.txt", "w+")
 
-    path.columns=['target','date_id','time','xid','yid']
-    ftime=0
-    crashNum=0
-    for date in range(6,11):  # 5
+    path.columns = ['target', 'date_id', 'time', 'xid', 'yid']
+    ftime = 0
+    crashNum = 0
+    for date in days:  # 5
         # todo change date for input data (weather)
         reader = dataReader(date, 3)
         oneMap = reader.getMaps()
-        for tar in range(1,11):  # 10
+        for tar in range(1, 11):  # 10
             # todo change date for output data (path)
-            onepath=path[path['target'].isin([tar]) & path['date_id'].isin([date])]
+            onepath = path[path['target'].isin([tar]) & path['date_id'].isin([date])]
             tmpTime = 2 * (len(onepath) - 1)
-            if tmpTime < 0 or tmpTime >18*60: # 超时做坠毁处理
-                ftime += 24*60
+            if tmpTime < 0 or tmpTime > 18 * 60:  # 超时做坠毁处理
+                ftime += 24 * 60
                 crashNum += 1
-            elif is_crash(onepath,oneMap):
-                ftime += 24*60
-                crashNum +=1
+            elif is_crash(onepath, oneMap):
+                ftime += 24 * 60
+                crashNum += 1
             else:
                 ftime += tmpTime
                 score_file.write("target:%d; date_id:%d; fly_time: %d \n" % (tar, date, tmpTime))
                 print("target:%d; date_id:%d; fly_time: %d" % (tar, date, tmpTime))
 
     print('===================')
-    print('score: ',ftime)
-    print('crashNum: ',crashNum)
+    print('score: ', ftime)
+    print('crashNum: ', crashNum)
     end = time.time()
     print("%f second" % (end - start))
-    score_file.write('\nscore: %d\ncrashNum: %d\n%f second' % (ftime,crashNum,end - start))
+    score_file.write('\nscore: %d\ncrashNum: %d\n%f second' % (ftime, crashNum, end - start))
     score_file.close()

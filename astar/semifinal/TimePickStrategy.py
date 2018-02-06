@@ -42,22 +42,22 @@ class City:
     # 第二方案
     def getXRanges2(self):
         if self.x - 30 >= 0:
-            sx = self.x - 30
+            sx = int(self.x - 30)
         else:
             sx = 0
         if self.x + 30 < 548:
-            ex = self.x + 30
+            ex = int(self.x + 30)
         else:
-            ex = 548
+            ex = 547
         return [sx, ex]
 
     def getYRanges2(self):
         if self.y - 30 >= 0:
-            sy = self.y - 30
+            sy = int(self.y - 30)
         else:
             sy = 0
         if self.y + 30 < 421:
-            ey = self.y + 30
+            ey = int(self.y + 30)
         else:
             ey = 420
         return [sy, ey]
@@ -69,8 +69,8 @@ class City:
 
 def decideTimePickStrategy(maps):
     # 给出各城市
-    # filePath = "E:\\machineLearningData\\shaun\\"
-    filePath = "F:\\ml\\data\\"
+    filePath = "E:\\machineLearningData\\shaun\\"
+    # filePath = "F:\\ml\\data\\"
     citys = pd.read_csv(filePath + "CityData.csv")
     cityArray = citys.values
     cityMap = dict()
@@ -79,10 +79,8 @@ def decideTimePickStrategy(maps):
     for array in cityArray:
         ctmp = City(array)
         cityMap[ctmp.id] = ctmp
-
     # 计算方区内障碍比
     # 修改为起点及终点障碍比，60*60方格
-
     timeMap = dict()
     poseedTime = dict()
     # 城市id
@@ -91,8 +89,8 @@ def decideTimePickStrategy(maps):
         list = []
         for hourIdx in range(0, 18):
             curMap = maps[hourIdx]
-            sliceMap = curMap[city.getXRanges()[0]:city.getXRanges()[1],
-                       city.getYRanges()[0]:city.getYRanges()[1]]
+            sliceMap = curMap[city.getXRanges2()[0]:city.getXRanges2()[1],
+                       city.getYRanges2()[0]:city.getYRanges2()[1]]
             cnt = len(sliceMap[sliceMap >= 1])
             list.append(cnt)
         dis = city.distance()
@@ -118,7 +116,8 @@ def decideTimePickStrategy(maps):
                 stime = (mint + 3) * 100 + tt
             else:
                 stime = (mint + 4) * 100 + tt - 60
-            if not poseedTime.has_key(stime):
+            # if not poseedTime.has_key(stime):  #python 2
+            if not stime in poseedTime:  #python 3
                 poseedTime[stime] = i
                 timeMap[i] = stime
                 break

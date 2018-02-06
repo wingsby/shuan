@@ -4,7 +4,7 @@ import numpy as np
 
 
 class WeatherMapReader:
-    threshold = 15
+    threshold = 14
     rthre = 4
     mapes = dict()
     rmapes = dict()
@@ -59,3 +59,4 @@ class WeatherMapReader:
             map[map < 0] = 1
             maps.append(map)
         return maps
+

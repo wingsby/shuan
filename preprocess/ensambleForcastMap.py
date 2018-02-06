@@ -6,8 +6,10 @@ import time
 
 start = time.time()
 
-path = "F:\ml\data\\"
-fname = path + "ForecastDataforTesting_201802.csv"
+# path = "F:\ml\data\\"
+path="E:\\machineLearningData\\shaun\\train\\"
+fname = path + "201802.csv"
+# fname = path + "ForecastDataforTesting_201802.csv"
 wname=path + "ensemble_201802.csv"
 data = pd.read_csv(fname, iterator=True)
 
@@ -26,7 +28,8 @@ while loop:
     try:
         chunk = data.get_chunk(chunkSize)
         aa = np.array(chunk.values)
-        tmpmean = np.mean(np.reshape(aa, (int(len(aa) / 10), 10, 7)), axis=1)
+        tmpmean = np.median(np.reshape(aa, (int(len(aa) / 10), 10, 7)), axis=1)
+        # +np.std(np.reshape(aa, (int(len(aa) / 10), 10, 7)), axis=1)
         chunk_mean = np.append(chunk_mean, tmpmean, axis=0)
     # chunk.std()
     except StopIteration:

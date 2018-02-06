@@ -80,21 +80,26 @@ def PathPlaning(sx, sy, ex, ey, daymaps, stimeMap):
     firstMap = np.zeros((548, 421))
     node = HashAstar.astarMainLoop(startPoint, endPoint, firstMap)
     shour = 0
-    sminute = 10
-    stime=(shour + 3) * 100 + sminute
+    sminute = 0
+    stime = (shour + 3) * 100 + sminute
     failNode = checkFailNodes(node, shour, sminute)
     while failNode:
-        sminute += 10
+        sminute += 2
         if sminute >= 60:
             sminute -= 60
             shour += 1
         stime = (shour + 3) * 100 + sminute
         if stimeMap.has_key(stime):
             continue
-        if 1800 - shour * 100 - sminute - 40 < endPoint.distance(startPoint) * 2:
+        if 1800 - shour * 100 - sminute - 40 > endPoint.distance(startPoint) * 2:
             return None, None
         failNode = checkFailNodes(node, shour, sminute)
-    stimeMap[stime] = 1
+    for addMin in range(0, 10, 2):
+        if (stime % 100 + addMin) >= 60:
+            ctime = (stime / 100 + 4) * 100 + stime % 100 + addMin - 60
+        else:
+            ctime = (stime / 100 + 3) * 100 + stime % 100 + addMin
+        stimeMap[ctime] = 1
     return node, stime
 
 
@@ -122,15 +127,18 @@ if __name__ == "__main__":
     # filePath = "K:\\pywork\\shaun\\"
     # filePath = "I:\\python work\\shuan\\pancy\\"
     # filePath = "E:\\machineLearningData\\shaun\\"
-    filePath = "F:\\ml\\data\\"
+    filePath = "E:\\machineLearningData\\shaun\\"
+    # filePath = "F:\\ml\\data\\"
     # city = pd.read_csv(filePath + "input\\CityData.csv")
     city = pd.read_csv(filePath + "CityData.csv")
     city_array = city.values - 1
+    days=range(6,11)
 
     # 读取weather map
-    WeatherMapReader.WeatherMapReader.fileName = filePath + "ensemble_201802.csv"
+    WeatherMapReader.WeatherMapReader.fileName = filePath + "test\\ensemble_201802.csv"
     # WeatherMapReader.WeatherMapReader.fileName = filePath + "input\\ForecastDataforTesting_ensmean.csv"
-    WeatherMapReader.WeatherMapReader.days = range(6, 11)
+    # WeatherMapReader.WeatherMapReader.days = range(6, 11)
+    WeatherMapReader.WeatherMapReader.days = days
     WeatherMapReader.WeatherMapReader.threshold = 15
     WeatherMapReader.WeatherMapReader.setMapes()
     middle = time.time()
@@ -138,7 +146,8 @@ if __name__ == "__main__":
 
     # save data
     sub_csv = pd.DataFrame(columns=['target', 'date_id', 'time', 'xid', 'yid'])
-    for day in range(6, 11):
+    # for day in range(6, 11):
+    for day in days:
         reader = WeatherMapReader.WeatherMapReader(day, 3)
         daymaps = reader.getMaps()
         stimeMap = dict()
@@ -146,8 +155,8 @@ if __name__ == "__main__":
         timeMap = TimePickStrategy.decideTimePickStrategy(daymaps)
         for target in range(1, 11):
             # stime = timeMap.get(target)
-            node, stime = PathPlaning(city_array[0][1], city_array[0][2], \
-                                      city_array[target][1], city_array[target][2], \
+            node, stime = PathPlaning(int(city_array[0][1]), int(city_array[0][2]), \
+                                      int(city_array[target][1]), int(city_array[target][2]), \
                                       daymaps, stimeMap)
             if node:
                 onepath = Tools.make_path(node)
@@ -159,7 +168,7 @@ if __name__ == "__main__":
                 print("wrong on %d !" % target)
 
     # 输出数据
-    wname = ("%s\\output\\out.csv" % (filePath))
+    wname = ("%s\\%s\\out.csv" % (filePath,"test"))
     sub_csv.target = sub_csv.target.astype(np.int32)
     sub_csv.date_id = sub_csv.date_id.astype(np.int32)
     sub_csv.xid = sub_csv.xid.astype(np.int32)
