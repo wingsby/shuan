@@ -1,3 +1,12 @@
+# coding:utf-8
+# @Author: wangye
+# @Description:
+# @Date:
+# @Modify
+# ======================shaun=======================================
+# -*- coding: utf-8 -*-
+
+
 import Tools
 import astar.HashAstar
 
@@ -9,17 +18,22 @@ MixRange = 10
 
 
 class BackRestartModel:
-    def __init__(self, curNode, endPoint, maps):
+    def __init__(self, curNode, endPoint, maps, stime):
         self.curNode = curNode
-        self.endPoint = astar.Node(endPoint.x, endPoint.y)
+        self.endPoint = endPoint
         self.maps = maps
         self.path = Tools.make_path(self.curNode)
-
+        self.stime = stime
 
     # 在较为极端的情况下无法完成寻路任务
     def doBackAndPlan(self):
-        backstep = self.curNode.cost % 30
-        houridx = self.curNode.cost / 30
+        minute = self.curNode.cost % 30 * 2 + self.stime % 100
+        hour = self.curNode.cost / 30 + self.stime / 100
+        if minute >= 60:
+            minute -= 60
+            hour += 1
+        backstep = minute/2
+        houridx = hour-3
         restart = self.path(self.curNode.cost - backstep)
         # 当切换时次时出错，此时应该如何？
         # 可以考虑多回退5/10步使用混合天气

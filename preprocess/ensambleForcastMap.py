@@ -6,7 +6,7 @@ import time
 
 start = time.time()
 
-path = "E:\machineLearningData\shaun\\"
+path = "F:\ml\data\\"
 fname = path + "ForecastDataforTesting_201802.csv"
 wname=path + "ensemble_201802.csv"
 data = pd.read_csv(fname, iterator=True)

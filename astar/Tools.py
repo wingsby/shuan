@@ -1,3 +1,12 @@
+# coding:utf-8
+# @Author: wangye
+# @Description:
+# @Date:Created  on 23:19 2018/2/5.
+# @Modify
+# ======================shaun=======================================
+# -*- coding: utf-8 -*-
+
+
 def make_path(node):
     """根据节点绘制路径"""
     path = []

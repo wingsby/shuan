@@ -10,11 +10,14 @@ import os
 import sys
 from datetime import *
 
+
+import time
+
 import numpy as np
 import pandas as pd
-import Tools
-
+import astar.Tools as Tools
 from astar.BackRestartModel import BackRestartModel
+from astar.semifinal import TimePickStrategy
 
 sys.path.append(os.path.abspath("F\\pywork\\astar"))
 from astar import WeatherMapReader, HashAstar
@@ -23,7 +26,7 @@ from astar.LocalOptimalModel import LocalOptimalModel
 
 # ==================================================================
 # 每一架飞机的路径
-def oneSub(path, target, date_id):
+def oneSub(path, target, date_id, stime):
     """ create one submit path """
     sub_df = pd.DataFrame(columns=['target', 'date_id', 'time', 'xid', 'yid'])
     try:
@@ -36,7 +39,9 @@ def oneSub(path, target, date_id):
         sub_df.target = target
         sub_df.date_id = date_id
         #### add time
-        ti = datetime(2017, 11, 21, 3, 0)
+        hour = stime / 100
+        minute = stime % 100
+        ti = datetime(2017, 11, 21, hour, minute)
         tm = [ti.strftime('%H:%M')]
         for i in range(length - 1):
             ti = ti + timedelta(minutes=2)
@@ -65,22 +70,27 @@ def changeRegionMap(sx, sy, ex, ey, daymaps, changehour):
     return newMap
 
 
-def PathPlaning(sx, sy, ex, ey, target, day, daymaps):
+# stime: ddmm
+def PathPlaning(sx, sy, ex, ey, daymaps, stime):
     path = []
     startPoint = HashAstar.Node(sx, sy)
     endPoint = HashAstar.Node(ex, ey)
     startPoint.__setCost__(0)
     # first try A STAR
     HashAstar.init()
-    node = HashAstar.astarMainLoop(startPoint, endPoint, daymaps[0])
+    shour = (stime - 300) / 100
+    sminute = stime % 100
+    node = HashAstar.astarMainLoop(startPoint, endPoint, daymaps[shour])
     # check nodes until break;
-    failNode = checkFailNodes(node)
+    failNode = checkFailNodes(node, shour, sminute)
     # try backresatart
     brm_node = failNode
-    while not brm_node:
-        failNode = checkFailNodes(brm_node)
+    while brm_node:
+        failNode = checkFailNodes(brm_node, shour, sminute)
+        if not failNode:
+            return None
         HashAstar.init()
-        brm = BackRestartModel(failNode, endPoint, daymaps)
+        brm = BackRestartModel(failNode, endPoint, daymaps, stime)
         brm_node = brm.doBackAndPlan()
         if brm_node.__eq__(endPoint):
             return brm_node
@@ -89,46 +99,25 @@ def PathPlaning(sx, sy, ex, ey, target, day, daymaps):
             # todo tomorrow
             # LocalOptimalModel()
 
-
-
-
-
             # 失败节点
+    return node
 
 
-def checkFailNodes(node):
+def checkFailNodes(node, shour, sminute):
     path = Tools.make_path(node)
     index = 0
     while index < len(path):
         xid, yid = path[index][0], path[index][1]
-        hour = 3 + int(index / 30)
-        minute = index % 30
+        hour = 3 + int(index / 30) + shour
+        minute = index % 30 + sminute
+        if minute >= 60:
+            hour += 1
+            minute -= 60
         if hour > 20:
             break
         if daymaps[hour - 3][xid, yid] == 1:
             return path[index]
         index += 1
-
-
-def findPath(sx, sy, ex, ey, target, day, daymaps, backStep):
-    """生成A-STAR 路径"""
-    path = []
-    startPoint = HashAstar.Node(sx, sy)
-    endPoint = HashAstar.Node(ex, ey)
-    startPoint.__setCost__(0)
-    now = HashAstar.Node(startPoint.x, startPoint.y)
-    now.__setCost__(0)
-    for houridx in range(0, 18):
-        model = LocalOptimalModel()
-        node = model.doFindPath(houridx, now, endPoint, daymaps)
-        if not node:
-            return None
-        new_path = Tools.make_path(node)
-        path = path + new_path
-        if node.__eq__(endPoint):
-            return path
-        now = HashAstar.Node(node.x, node.y)
-        now.__setCost__(0)
 
 
 # =================================================================================================
@@ -137,38 +126,46 @@ if __name__ == "__main__":
     start = time.time()
     # filePath = "K:\\pywork\\shaun\\"
     # filePath = "I:\\python work\\shuan\\pancy\\"
-    filePath = "E:\\machineLearningData\\shaun\\"
+    # filePath = "E:\\machineLearningData\\shaun\\"
+    filePath = "F:\\ml\\data\\"
     # city = pd.read_csv(filePath + "input\\CityData.csv")
     city = pd.read_csv(filePath + "CityData.csv")
     city_array = city.values - 1
 
     # 读取weather map
-    WeatherMapReader.WeatherMapReader.fileName = filePath + "ForecastDataforTesting_ensmean.csv"
+    WeatherMapReader.WeatherMapReader.fileName = filePath + "ensemble_201802.csv"
     # WeatherMapReader.WeatherMapReader.fileName = filePath + "input\\ForecastDataforTesting_ensmean.csv"
     WeatherMapReader.WeatherMapReader.days = range(6, 11)
     WeatherMapReader.WeatherMapReader.threshold = 15
     WeatherMapReader.WeatherMapReader.setMapes()
-    backStep = 2
-
     middle = time.time()
     print("time for read data: %f second" % (middle - start))
 
     # save data
     sub_csv = pd.DataFrame(columns=['target', 'date_id', 'time', 'xid', 'yid'])
-    for day in [6]:  # range(6,11):
+    for day in range(6, 11):
         reader = WeatherMapReader.WeatherMapReader(day, 3)
         daymaps = reader.getMaps()
-        for target in [4]:  # range(1,11):
-            onepath = findPath(city_array[0][1], city_array[0][2], \
-                               city_array[target][1], city_array[target][2], \
-                               target, day, daymaps, backStep)
-            sub_df = oneSub(onepath, target, day)
-            sub_csv = pd.concat([sub_csv, sub_df], axis=0)
+        # 各站时间的最优策略
+        timeMap = TimePickStrategy.decideTimePickStrategy(daymaps)
+        for target in range(1, 11):
+            stime = timeMap.get(target)
+            node = PathPlaning(city_array[0][1], city_array[0][2], \
+                                  city_array[target][1], city_array[target][2], \
+                                  daymaps, stime)
+            if node:
+                onepath=Tools.make_path(node)
+                sub_df = oneSub(np.array(onepath)+1, target, day, stime)
+                sub_csv = pd.concat([sub_csv, sub_df], axis=0)
+            else:
+                print("wrong on %d !" % target)
     sub_csv.target = sub_csv.target.astype(np.int32)
     sub_csv.date_id = sub_csv.date_id.astype(np.int32)
     sub_csv.xid = sub_csv.xid.astype(np.int32)
     sub_csv.yid = sub_csv.yid.astype(np.int32)
-    # sub_csv.to_csv(filePath+"output\\test_with_everyhour_weather_regionIn30Step_back2.csv",header=False,index=False)
+
+    # 输出数据
+    sub_csv.to_csv(filePath + "output\\test_with_everyhour_weather_regionIn30Step_back2.csv", header=False, index=False)
 
     end = time.time()
     print("time for A-star: %f second" % (end - middle))

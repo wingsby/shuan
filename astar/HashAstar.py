@@ -102,7 +102,7 @@ linkedOpen = []
 def astarMainLoop(startPoint, endPoint, worldMap):
     Node.setMap(worldMap)
     Node.setStart(Node(startPoint.x, startPoint.y))
-    Node.setEnd(Node(startPoint.x, startPoint.y))
+    Node.setEnd(Node(endPoint.x, endPoint.y))
     # print(len(worldMap))
     # print(len(worldMap[0]))
     openDict[startPoint] = startPoint
