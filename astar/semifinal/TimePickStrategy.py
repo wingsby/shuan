@@ -13,6 +13,7 @@ from datetime import *
 import numpy as np
 import pandas as pd
 import astar.Tools as Tools
+from astar.semifinal import Commons
 
 
 class City:
@@ -69,7 +70,7 @@ class City:
 
 def decideTimePickStrategy(maps):
     # 给出各城市
-    filePath = "E:\\machineLearningData\\shaun\\"
+    filePath = Commons.filePath
     # filePath = "F:\\ml\\data\\"
     citys = pd.read_csv(filePath + "CityData.csv")
     cityArray = citys.values

@@ -4,13 +4,12 @@ import pandas as pd
 import numpy as np
 import time
 
-start = time.time()
+from astar.semifinal import Commons
 
-# path = "F:\ml\data\\"
-path="E:\\machineLearningData\\shaun\\train\\"
-fname = path + "201802.csv"
-# fname = path + "ForecastDataforTesting_201802.csv"
-wname=path + "ensemble_201802.csv"
+start = time.time()
+path = Commons.filePath + Commons.subPath
+fname = path + Commons.dataPath
+wname = path + Commons.ensemblePath
 data = pd.read_csv(fname, iterator=True)
 
 loop = True
