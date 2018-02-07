@@ -32,16 +32,17 @@ class BackRestartModel:
         if minute >= 60:
             minute -= 60
             hour += 1
-        backstep = minute/2
-        houridx = hour-3
+        backstep = minute / 2
+        houridx = hour - 3
         restart = self.path(self.curNode.cost - backstep)
         # 当切换时次时出错，此时应该如何？
         # 可以考虑多回退5/10步使用混合天气
         # 混合天气的意思是几步范围内是本小时天气剩余采用下小时天气
-        curMap = self.maps[houridx]
-        if backstep == 0:
-            restart = self.path(self.curNode.cost - backstep)
-            curMap = Tools.mixedMaps(restart, self.maps, MixRange)
+        # curMap = self.maps[houridx]
+        # if backstep == 0:
+        restart = self.path(self.curNode.cost - backstep)
+        # curMap = Tools.mixedMaps(restart, self.maps, MixRange)
+        curMap = Tools.endValidMixedMaps(restart, self.maps, self.stime)
         HashAstar.init()
         node = HashAstar.astarMainLoop(restart, self.endPoint, curMap)
         return node

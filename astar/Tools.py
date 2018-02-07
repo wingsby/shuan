@@ -5,6 +5,7 @@
 # @Modify
 # ======================shaun=======================================
 # -*- coding: utf-8 -*-
+import copy
 
 
 def make_path(node):
@@ -24,7 +25,28 @@ def mixedMaps(node, range, maps):
         mixMap[x, y] = (maps[idx])[x, y]
     return mixMap
 
+# 最近的步数采用当前时间,往前再多看一个小时，然后终点前都为无障碍
+def endValidMixedMaps(node, maps, stime):
+    minute = node.cost % 30 * 2 + stime % 100
+    hour = node.cost / 30 + stime / 100
+    if minute >= 60:
+        minute -= 60
+        hour += 1
+    idx=hour-3
+    range=(60-minute)/2
+    zone = findCloseZone(node, range+30, maps[idx+1])
+    mixMap = copy.copy(maps[idx+1])
+    mixMap[:,:]=0
+    for [x, y] in zone:
+        mixMap[x, y] = (maps[idx+1])[x, y]
 
+    zone1 = findCloseZone(node, range, maps[idx ])
+    mixMap[:, :] = 0
+    for [x, y] in zone1:
+        mixMap[x, y] = (maps[idx])[x, y]
+    return mixMap
+
+#寻找Manhattan距离为range的区域
 def findCloseZone(node, range, map):
     if node.x >= range:
         x0 = node.x - range
@@ -55,4 +77,3 @@ def findCloseZone(node, range, map):
 def ManhattanDistance(x0, y0, x1, y1):
     dis = abs(x0 - x1) + abs(y0 - y1)
     return dis
-

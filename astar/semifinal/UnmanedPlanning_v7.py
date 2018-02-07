@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import astar.Tools as Tools
 from astar.BackRestartModel import BackRestartModel
-from astar.semifinal import TimePickStrategy, Commons
+from astar.semifinal import TimePickStrategy
 
 sys.path.append(os.path.abspath("F\\pywork\\astar"))
 from astar import WeatherMapReader, HashAstar
@@ -92,7 +92,7 @@ def PathPlaning(sx, sy, ex, ey, daymaps, stimeMap):
         if stimeMap.has_key(stime):
             continue
         if 1800 - shour * 100 - sminute - 40 > endPoint.distance(startPoint) * 2:
-            return None, None
+            return node, stime
         failNode = checkFailNodes(node, shour, sminute)
     for addMin in range(0, 10, 2):
         if (stime % 100 + addMin) >= 60:
@@ -127,15 +127,15 @@ if __name__ == "__main__":
     # filePath = "K:\\pywork\\shaun\\"
     # filePath = "I:\\python work\\shuan\\pancy\\"
     # filePath = "E:\\machineLearningData\\shaun\\"
-    filePath = Commons.filePath
+    filePath = "E:\\machineLearningData\\shaun\\"
     # filePath = "F:\\ml\\data\\"
     # city = pd.read_csv(filePath + "input\\CityData.csv")
     city = pd.read_csv(filePath + "CityData.csv")
     city_array = city.values - 1
-    days=Commons.days
+    days=range(6,11)
 
     # 读取weather map
-    WeatherMapReader.WeatherMapReader.fileName = filePath + Commons.subPath+Commons.ensemblePath;
+    WeatherMapReader.WeatherMapReader.fileName = filePath + "test\\ensemble_201802.csv"
     # WeatherMapReader.WeatherMapReader.fileName = filePath + "input\\ForecastDataforTesting_ensmean.csv"
     # WeatherMapReader.WeatherMapReader.days = range(6, 11)
     WeatherMapReader.WeatherMapReader.days = days
@@ -147,13 +147,13 @@ if __name__ == "__main__":
     # save data
     sub_csv = pd.DataFrame(columns=['target', 'date_id', 'time', 'xid', 'yid'])
     # for day in range(6, 11):
-    for day in days:
-        reader = WeatherMapReader.WeatherMapReader(day, 3)
-        daymaps = reader.getMaps()
-        stimeMap = dict()
-        # 各站时间的最优策略
-        timeMap = TimePickStrategy.decideTimePickStrategy(daymaps)
-        for target in range(1, 11):
+    for target in range(1, 11):
+        for day in days:
+            reader = WeatherMapReader.WeatherMapReader(day, 3)
+            daymaps = reader.getMaps()
+            stimeMap = dict()
+            # 各站时间的最优策略
+            timeMap = TimePickStrategy.decideTimePickStrategy(daymaps)
             # stime = timeMap.get(target)
             node, stime = PathPlaning(int(city_array[0][1]), int(city_array[0][2]), \
                                       int(city_array[target][1]), int(city_array[target][2]), \
@@ -168,7 +168,7 @@ if __name__ == "__main__":
                 print("wrong on %d !" % target)
 
     # 输出数据
-    wname = ("%s\\%s\\%s" % (filePath,Commons.subPath,Commons.outPutPath))
+    wname = ("%s\\%s\\out.csv" % (filePath,"test"))
     sub_csv.target = sub_csv.target.astype(np.int32)
     sub_csv.date_id = sub_csv.date_id.astype(np.int32)
     sub_csv.xid = sub_csv.xid.astype(np.int32)

@@ -16,7 +16,8 @@ import numpy as np
 import pandas as pd
 import astar.Tools as Tools
 from astar.BackRestartModel import BackRestartModel
-from astar.semifinal import TimePickStrategy, Commons
+from astar.HashAstar import Node
+from astar.semifinal import TimePickStrategy, Commons, ValidTime
 
 sys.path.append(os.path.abspath("F\\pywork\\astar"))
 from astar import WeatherMapReader, HashAstar
@@ -70,7 +71,11 @@ def changeRegionMap(sx, sy, ex, ey, daymaps, changehour):
 
 
 # 无障碍
-def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, target, smap, emap):
+# @successMap: 成功的节点
+# @failedMap:失败的节点
+# @smap：起始时间表
+# @emap: 结束时间表
+def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, cityid, smap, emap):
     path = []
     startPoint = HashAstar.Node(sx, sy)
     endPoint = HashAstar.Node(ex, ey)
@@ -84,16 +89,17 @@ def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, target, sma
     stime = (shour + 3) * 100 + sminute
     failNodes, flag = collectFailNodes(node, shour, sminute, daymaps)
     fmap = dict()
+    sumap = dict()
     if flag:
         # node 必为end
-        if node in successMap:
-            successMap[node].append(stime)
+        if cityid in sumap:
+            sumap[cityid].append((node, stime))
         else:
-            successMap[node] = [stime]
+            sumap[cityid] = [(node, stime)]
     else:
         if failNodes:
             fmap[stime] = failNodes
-    etimes = emap.get(day * 100 + target)
+    etimes = emap.get(day * 100 + cityid)
     if not etimes:
         return False
     while stime <= 2100:
@@ -108,17 +114,19 @@ def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, target, sma
                 failNodes, flag = collectFailNodes(node, shour, sminute, daymaps)
                 if flag:
                     # node 必为end
-                    if node in successMap:
-                        successMap[node].append(stime)
+                    if cityid in sumap:
+                        sumap[cityid].append((node, stime))
                     else:
-                        successMap[node] = [stime]
+                        sumap[cityid] = [(node, stime)]
                 else:
                     if failNodes:
                         fmap[stime] = failNodes
-    failedMap[target] = fmap
+    failedMap[day * 100 + cityid] = fmap
+    successMap[day] = sumap
     return True
 
-# 检测错误节点并记录下来
+
+# 检测错误节点并记录下来,返回True时意味着成功
 def collectFailNodes(node, shour, sminute, daymaps):
     path = Tools.make_path(node)
     index = 0
@@ -137,46 +145,57 @@ def collectFailNodes(node, shour, sminute, daymaps):
             nodelist.append(path[index])
         index += 1
     if len(nodelist) > 0:
-        return nodelist, True
-    else:
         return nodelist, False
+    else:
+        return nodelist, True
 
 
-def failNodeRePlan(sx,sy,ex,ey,fmap,target,daymaps):
+def failNodeRePlan(sx, sy, ex, ey, fmap, target, daymaps, successMap):
     # pick current etime is valid or currentMap is valid
-    cost=abs(sx-ex)+abs(sy-ey)*2
+    sumap = dict()
+    cost = (abs(sx - ex) + abs(sy - ey)) * 2
     for stime in fmap:
-        addhour= np.math.ceil((cost + stime % 100) / 60.)
-        ehour= stime/100*100+addhour
-        if (daymaps[ehour])[ex-1][ey-1]==0 and (daymaps[ehour+1])[ex-1][ey-1]==0:
+        addhour = int(np.math.ceil((cost + stime % 100) / 60.))
+        ehour = stime / 100 + addhour
+        if ehour >= 18:
+            continue
+        if (daymaps[ehour - 3])[ex - 1][ey - 1] == 0:
             # first 序列
-            node=failNodePathPlaning
+            node = failNodePathPlaning(sx, sy, ex, ey, target, day, daymaps, stime)
+            if node:
+                if target in sumap:
+                    sumap[target].append((node, stime))
+                else:
+                    sumap[target] = [(node, stime)]
+    successMap[day] = sumap
 
 
-
-def failNodePathPlaning(sx, sy, ex, ey, target, day, daymaps,stime):
+def failNodePathPlaning(sx, sy, ex, ey, target, day, daymaps, stime):
     path = []
     startPoint = HashAstar.Node(sx, sy)
     endPoint = HashAstar.Node(ex, ey)
     startPoint.__setCost__(0)
     # first try A STAR
     HashAstar.init()
-    shour=stime/100
-    sminute=stime%100
-    #问题在于起始点结束点有可能没有通路
-    node = HashAstar.astarMainLoop(startPoint, endPoint, daymaps[shour-3])
-
+    # 问题在于起始点结束点有可能没有通路
+    # 假设最近小时步数为这一小时，下一小时步数为下一小时，其他区域为通路
+    noWeather = np.zeros((548, 421))
+    tnode = HashAstar.astarMainLoop(startPoint, endPoint, noWeather)
     # check nodes until break;
-    failNode = checkFailNodes(node)
+    failNode, flag = checkFailNodes(tnode, stime / 100, stime % 100)
+    if flag:
+        return tnode
     # try backresatart
     brm_node = failNode
     while not brm_node:
-        failNode = checkFailNodes(brm_node)
         HashAstar.init()
-        brm = BackRestartModel(failNode, endPoint, daymaps)
+        # Tools.endValidMixedMaps()
+        brm = BackRestartModel(failNode, endPoint, daymaps, stime)
         brm_node = brm.doBackAndPlan()
         if brm_node.__eq__(endPoint):
             return brm_node
+        failNode = checkFailNodes(brm_node)
+
 
 def checkFailNodes(node, shour, sminute):
     path = Tools.make_path(node)
@@ -189,53 +208,97 @@ def checkFailNodes(node, shour, sminute):
             hour += 1
             minute -= 60
         if hour > 20:
-            break
+            return None, False
         if daymaps[hour - 3][xid, yid] == 1:
-            return path[index]
+            return path[index], False
         index += 1
-
+    return None, True
 
 
 # =================================================================================================
 
 if __name__ == "__main__":
     start = time.time()
-    # filePath = "K:\\pywork\\shaun\\"
-    # filePath = "I:\\python work\\shuan\\pancy\\"
     # filePath = "E:\\machineLearningData\\shaun\\"
     filePath = Commons.filePath
-    # filePath = "F:\\ml\\data\\"
-    # city = pd.read_csv(filePath + "input\\CityData.csv")
     city = pd.read_csv(filePath + "CityData.csv")
     city_array = city.values - 1
     days = Commons.days
-
     # 读取weather map
     WeatherMapReader.WeatherMapReader.fileName = filePath + Commons.subPath + Commons.ensemblePath;
     # WeatherMapReader.WeatherMapReader.fileName = filePath + "input\\ForecastDataforTesting_ensmean.csv"
-    # WeatherMapReader.WeatherMapReader.days = range(6, 11)
     WeatherMapReader.WeatherMapReader.days = days
     WeatherMapReader.WeatherMapReader.threshold = 14
     WeatherMapReader.WeatherMapReader.setMapes()
     middle = time.time()
     print("time for read data: %f second" % (middle - start))
-
     # save data
     sub_csv = pd.DataFrame(columns=['target', 'date_id', 'time', 'xid', 'yid'])
-    # for day in range(6, 11):
-    for day in days:
-        reader = WeatherMapReader.WeatherMapReader(day, 3)
-        daymaps = reader.getMaps()
-        stimeMap = dict()
-        # 各站时间的最优策略
-        # timeMap = TimePickStrategy.decideTimePickStrategy(daymaps)
-        for target in range(1, 11):
-            # stime = timeMap.get(target)
-            node, stime = PathPlaning(int(city_array[0][1]), int(city_array[0][2]), \
-                                      int(city_array[target][1]), int(city_array[target][2]), \
-                                      daymaps, stimeMap)
 
-            # start two
+    stimeMap, etimeMap = ValidTime.getTime()
+    successMap = dict()
+    failMap = dict()
+    for target in range(1, 11):
+        for day in days:
+            reader = WeatherMapReader.WeatherMapReader(day, 3)
+            daymaps = reader.getMaps()
+            # 各站时间的最优策略
+            # timeMap = TimePickStrategy.decideTimePickStrategy(daymaps)
+            flag = PathPlaning(int(city_array[0][1]), int(city_array[0][2]), \
+                               int(city_array[target][1]), int(city_array[target][2]), \
+                               daymaps, successMap, failMap, day, target, stimeMap, etimeMap)
+            print()
+        print()
+
+    # key=100*day+target
+    for key in failMap:
+        fmap = failMap.get(key)
+        target = key % 100
+        failNodeRePlan(int(city_array[0][1]), int(city_array[0][2]), int(city_array[target][1]),
+                       int(city_array[target][2]), fmap, target, daymaps, successMap)
+
+    # 分配各日时间安排，同一日优先时间长的，同一城市优先步数少的
+    # skey=day
+    # 每日安排，只有一个
+    finalMap = dict()
+    for skey in successMap:
+        sumap = successMap.get(skey)
+        dayFinal = dict()
+        # todo 按长度排序
+        for target in Commons.cityorder:
+            tmplist = sumap[target]
+            minlen = 9999
+            mintime = 9999;
+            minnode = None
+            for (node, stime) in tmplist:
+                for (tnode, ttime, ttarget) in dayFinal:
+                    if target == ttarget:
+                        continue
+                # 首先选择时间，通常选最早的
+                if minlen > node.cost:
+                    minlen = node.cost
+                    mintime = stime
+                    minnode = node
+                else:
+                    if minlen == node.cost:
+                        if stime < mintime:
+                            minlen = node.cost
+                            mintime = stime
+                            minnode = node
+            if mintime < 9999:
+                dayFinal[target] = (minnode, mintime, target)
+            else:
+                # 有错的只赋值一格
+                wrong = 1920
+                for (tnode, ttime, ttarget) in dayFinal:
+                    if wrong == ttime:
+                        wrong += 10
+                dayFinal[target] = (Node(int(city_array[target][1]), int(city_array[target][2])), wrong, target)
+
+    # # 写文件
+    for target in range(1, 11):
+        for day in days:
+            (node, stime, target) = finalMap.get(day).get(target)
             if node:
                 onepath = Tools.make_path(node)
                 sub_df = oneSub(np.array(onepath) + 1, target, day, stime)
