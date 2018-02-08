@@ -53,10 +53,11 @@ def oneSub(path, target, date_id, stime):
 
 
 # 无障碍
-# @successMap: 成功的节点
-# @failedMap:失败的节点
-# @smap：起始时间表
-# @emap: 结束时间表
+# @successMap: 成功的节点 结构 key：day value：dict（key ：target value:[(node,stime)])
+# @failedMap:失败的节点 key:day*100+target value: dict(key:stime value: nodelist)
+# @smap：起始时间表 key: day value:最早有效hour
+# @emap: 结束时间表 key:day*100+target value: [etime]
+# 返回： false：etime不存在    true：程序运行结束，无其他意思
 def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, cityid, smap, emap):
     path = []
     startPoint = HashAstar.Node(sx, sy)
@@ -96,6 +97,7 @@ def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, cityid, sma
             sminute -= 60
             shour += 1
         stime = shour * 100 + sminute
+        # etime 其实是ehour
         for etime in etimes:
             if etime * 60 - shour * 60 - sminute >= endPoint.distance(startPoint) * 2 \
                     >= (etime - 1) * 60 - shour * 60 - sminute:
@@ -115,6 +117,8 @@ def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, cityid, sma
 
 
 # 检测错误节点并记录下来,返回True时意味着成功
+# 返回说明： FALSE 寻路失败，True寻路成功
+#           None 无节点返回（超时或成功）
 def collectFailNodes(node, shour, sminute, daymaps):
     path = Tools.make_path(node)
     index = 0
@@ -135,7 +139,7 @@ def collectFailNodes(node, shour, sminute, daymaps):
     if len(nodelist) > 0:
         return nodelist, False
     else:
-        return nodelist, True
+        return None, True
 
 
 def failNodeRePlan(sx, sy, ex, ey, fmap, target, daymaps, successMap):
@@ -148,7 +152,7 @@ def failNodeRePlan(sx, sy, ex, ey, fmap, target, daymaps, successMap):
     for stime in fmap:
         addhour = int(np.math.ceil((cost + stime % 100) / 60.))
         ehour = stime / 100 + addhour
-        if ehour >= 18:
+        if ehour >= 21:
             continue
         if (daymaps[ehour - 3])[ex - 1][ey - 1] == 0:
             # first 序列
@@ -178,10 +182,10 @@ def failNodePathPlaning(sx, sy, ex, ey, target, day, daymaps, stime):
         return tnode
     # try backresatart
     brm_node = failNode
-    while not brm_node:
+    while brm_node:
         HashAstar.init()
         # Tools.endValidMixedMaps()
-        brm = BackRestartModel(failNode, endPoint, daymaps, stime)
+        brm = BackRestartModel(Node(failNode[0],failNode[1]), endPoint, daymaps, stime)
         brm_node = brm.doBackAndPlan()
         if brm_node.__eq__(endPoint):
             return brm_node
@@ -238,15 +242,16 @@ if __name__ == "__main__":
             flag = PathPlaning(int(city_array[0][1]), int(city_array[0][2]), \
                                int(city_array[target][1]), int(city_array[target][2]), \
                                daymaps, successMap, failMap, day, target, stimeMap, etimeMap)
-            print()
-        print()
+            #     print()
+            # print()
 
     # key=100*day+target
     for key in failMap:
         fmap = failMap.get(key)
         target = key % 100
-        failNodeRePlan(int(city_array[0][1]), int(city_array[0][2]), int(city_array[target][1]),
-                       int(city_array[target][2]), fmap, target, daymaps, successMap)
+        if len(fmap) > 0:
+            failNodeRePlan(int(city_array[0][1]), int(city_array[0][2]), int(city_array[target][1]),
+                           int(city_array[target][2]), fmap, target, daymaps, successMap)
 
     # 分配各日时间安排，同一日优先时间长的，同一城市优先步数少的
     # skey=day
@@ -267,12 +272,12 @@ if __name__ == "__main__":
             tnode = None
             ttime = None
             ttarget = None
-            node=None
+            node = None
             for (node, stime) in tmplist:
-                continueFlag=False
+                continueFlag = False
                 for (tnode, ttime, ttarget) in dayFinal.values():
                     if ttime == stime:
-                        continueFlag=True
+                        continueFlag = True
                         break
                 if continueFlag:
                     continue
@@ -296,12 +301,12 @@ if __name__ == "__main__":
                     if wrong == ttime:
                         wrong += 10
                 dayFinal[target] = (Node(int(city_array[target][1]), int(city_array[target][2])), wrong, target)
-        finalMap[skey]=dayFinal
+        finalMap[skey] = dayFinal
 
     # # 写文件
     for target in range(1, 11):
         for day in days:
-            dayFinal=finalMap.get(day)
+            dayFinal = finalMap.get(day)
             if not dayFinal:
                 continue
             (node, stime, target) = dayFinal.get(target)
