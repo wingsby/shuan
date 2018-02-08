@@ -52,24 +52,6 @@ def oneSub(path, target, date_id, stime):
     return sub_df
 
 
-def changeRegionMap(sx, sy, ex, ey, daymaps, changehour):
-    """改变起点周围30步内的map"""
-    newMap = np.zeros((548, 421))
-    for hour in range(17, changehour - 1, -1):
-        hourId = hour - changehour
-        x1 = max(sx - 30 * (hourId + 1), 0)
-        x2 = min(sx + 30 * (hourId + 1), 547)
-        y1 = max(sy - 30 * (hourId + 1), 0)
-        y2 = min(sy + 30 * (hourId + 1), 420)
-        newMap[x1:x2, y1:y2] = daymaps[hour][x1:x2, y1:y2]
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # ax.imshow(newMap)
-    # plt.scatter(sy,sx,  marker='s')
-    # plt.scatter(ey, ex, marker='X')
-    return newMap
-
-
 # 无障碍
 # @successMap: 成功的节点
 # @failedMap:失败的节点
@@ -86,10 +68,16 @@ def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, cityid, sma
     node = HashAstar.astarMainLoop(startPoint, endPoint, firstMap)
     shour = smap.get(day)
     sminute = 0
-    stime = (shour + 3) * 100 + sminute
+    stime = shour * 100 + sminute
     failNodes, flag = collectFailNodes(node, shour, sminute, daymaps)
-    fmap = dict()
-    sumap = dict()
+    if day * 100 + cityid in failedMap:
+        fmap = failedMap.get(day * 100 + cityid)
+    else:
+        fmap = dict()
+    if day in successMap:
+        sumap = successMap.get(day)
+    else:
+        sumap = dict()
     if flag:
         # node 必为end
         if cityid in sumap:
@@ -107,7 +95,7 @@ def PathPlaning(sx, sy, ex, ey, daymaps, successMap, failedMap, day, cityid, sma
         if sminute >= 60:
             sminute -= 60
             shour += 1
-        stime = (shour + 3) * 100 + sminute
+        stime = shour * 100 + sminute
         for etime in etimes:
             if etime * 60 - shour * 60 - sminute >= endPoint.distance(startPoint) * 2 \
                     >= (etime - 1) * 60 - shour * 60 - sminute:
@@ -133,7 +121,7 @@ def collectFailNodes(node, shour, sminute, daymaps):
     nodelist = []
     while index < len(path):
         xid, yid = path[index][0], path[index][1]
-        hour = 3 + int(index / 30) + shour
+        hour = int(index / 30) + shour
         minute = index % 30 + sminute
         if minute >= 60:
             hour += 1
@@ -152,7 +140,10 @@ def collectFailNodes(node, shour, sminute, daymaps):
 
 def failNodeRePlan(sx, sy, ex, ey, fmap, target, daymaps, successMap):
     # pick current etime is valid or currentMap is valid
-    sumap = dict()
+    if day in successMap:
+        sumap = successMap.get(day)
+    else:
+        sumap = dict()
     cost = (abs(sx - ex) + abs(sy - ey)) * 2
     for stime in fmap:
         addhour = int(np.math.ceil((cost + stime % 100) / 60.))
@@ -202,7 +193,7 @@ def checkFailNodes(node, shour, sminute):
     index = 0
     while index < len(path):
         xid, yid = path[index][0], path[index][1]
-        hour = 3 + int(index / 30) + shour
+        hour = int(index / 30) + shour
         minute = index % 30 + sminute
         if minute >= 60:
             hour += 1
@@ -266,14 +257,25 @@ if __name__ == "__main__":
         dayFinal = dict()
         # todo 按长度排序
         for target in Commons.cityorder:
-            tmplist = sumap[target]
+            if target in sumap:
+                tmplist = sumap[target]
+            else:
+                tmplist = []
             minlen = 9999
             mintime = 9999;
             minnode = None
+            tnode = None
+            ttime = None
+            ttarget = None
+            node=None
             for (node, stime) in tmplist:
-                for (tnode, ttime, ttarget) in dayFinal:
-                    if target == ttarget:
-                        continue
+                continueFlag=False
+                for (tnode, ttime, ttarget) in dayFinal.values():
+                    if ttime == stime:
+                        continueFlag=True
+                        break
+                if continueFlag:
+                    continue
                 # 首先选择时间，通常选最早的
                 if minlen > node.cost:
                     minlen = node.cost
@@ -290,15 +292,19 @@ if __name__ == "__main__":
             else:
                 # 有错的只赋值一格
                 wrong = 1920
-                for (tnode, ttime, ttarget) in dayFinal:
+                for (tnode, ttime, ttarget) in dayFinal.values():
                     if wrong == ttime:
                         wrong += 10
                 dayFinal[target] = (Node(int(city_array[target][1]), int(city_array[target][2])), wrong, target)
+        finalMap[skey]=dayFinal
 
     # # 写文件
     for target in range(1, 11):
         for day in days:
-            (node, stime, target) = finalMap.get(day).get(target)
+            dayFinal=finalMap.get(day)
+            if not dayFinal:
+                continue
+            (node, stime, target) = dayFinal.get(target)
             if node:
                 onepath = Tools.make_path(node)
                 sub_df = oneSub(np.array(onepath) + 1, target, day, stime)

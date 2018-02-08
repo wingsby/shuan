@@ -5,6 +5,8 @@ import time
 import pandas as pd
 import numpy as np
 
+from astar.semifinal import Commons
+
 
 def read_data(fname, head):
     """ read data """
@@ -99,7 +101,7 @@ if __name__ == "__main__":
     # path = read_data(filePath+"output\\train\\v2_A_star_waitBadWeather15.csv",None)
     # score_file=open(filePath+"output\\train\\v2_A_star_waitBadWeather15_score.txt", "w+")
     # dataReader.fileName = "F:\\pywork\\shaun\\input\\ForecastDataforTesting_ensmean.csv"
-    dataReader.fileName = filePath + "true_201802.csv"
+    dataReader.fileName = filePath + Commons.ensemblePath
     # dataReader.fileName = "F:\\pywork\\shaun\\input\\In_situMeasurementforTraining_201712.csv"
     dataReader.days = days
     dataReader.setMapes()
