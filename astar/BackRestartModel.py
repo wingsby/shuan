@@ -22,7 +22,7 @@ class BackRestartModel:
         self.curNode = curNode
         self.endPoint = endPoint
         self.maps = maps
-        self.path = Tools.make_path(self.curNode)
+        self.path = Tools.make_nodepath(self.curNode)
         self.stime = stime
 
     # 在较为极端的情况下无法完成寻路任务
@@ -34,14 +34,18 @@ class BackRestartModel:
             hour += 1
         backstep = minute / 2
         houridx = hour - 3
-        restart = self.path(self.curNode.cost - backstep)
+        if self.curNode.cost - backstep < 0 or self.curNode.cost - backstep > len(self.path):
+            return None
+        restart = self.path[self.curNode.cost - backstep]
         # 当切换时次时出错，此时应该如何？
         # 可以考虑多回退5/10步使用混合天气
         # 混合天气的意思是几步范围内是本小时天气剩余采用下小时天气
         # curMap = self.maps[houridx]
         # if backstep == 0:
-        restart = self.path(self.curNode.cost - backstep)
+        restart = self.path[self.curNode.cost - backstep]
         # curMap = Tools.mixedMaps(restart, self.maps, MixRange)
+        if hour > 20:
+            return None
         curMap = Tools.endValidMixedMaps(restart, self.maps, self.stime)
         HashAstar.init()
         node = HashAstar.astarMainLoop(restart, self.endPoint, curMap)

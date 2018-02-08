@@ -8,7 +8,7 @@
 
 import numpy as np
 import pandas as pd
-from astar import WeatherMapReader
+from astar import WeatherMapes
 from astar.HashAstar import Node
 from astar.semifinal import Commons
 
@@ -20,14 +20,13 @@ def init():
     filePath = Commons.filePath
     city = pd.read_csv(filePath + "CityData.csv")
     city_array = city.values - 1
-    WeatherMapReader.WeatherMapReader.days = Commons.days
-    WeatherMapReader.WeatherMapReader.threshold = 14
-    WeatherMapReader.WeatherMapReader.setMapes()
+    WeatherMapes.WeatherMapContainer.days = Commons.days
+    WeatherMapes.WeatherMapContainer.threshold = 14
+    WeatherMapes.WeatherMapContainer.initWeatherMapes()
     startPoint = Node(city_array[0][1], city_array[0][2])
 
     for day in Commons.days:
-        reader = WeatherMapReader.WeatherMapReader(day, 3)
-        daymaps = reader.getMaps()
+        daymaps = WeatherMapes.WeatherMapContainer.getWeatherMapes(day)
         # start
         for hour in range(3, 21):
             if (daymaps[hour - 3])[startPoint.x - 1][startPoint.y - 1] < 1:

@@ -20,7 +20,7 @@ from astar.BackRestartModel import BackRestartModel
 from astar.semifinal import TimePickStrategy
 
 sys.path.append(os.path.abspath("F\\pywork\\astar"))
-from astar import WeatherMapReader, HashAstar
+from astar import WeatherMapes, HashAstar
 from astar.LocalOptimalModel import LocalOptimalModel
 
 
@@ -133,19 +133,19 @@ if __name__ == "__main__":
     city_array = city.values - 1
 
     # 读取weather map
-    WeatherMapReader.WeatherMapReader.fileName = filePath + "ensemble_201802.csv"
+    WeatherMapes.WeatherMapContainer.fileName = filePath + "ensemble_201802.csv"
     # WeatherMapReader.WeatherMapReader.fileName = filePath + "input\\ForecastDataforTesting_ensmean.csv"
-    WeatherMapReader.WeatherMapReader.days = range(6, 11)
-    WeatherMapReader.WeatherMapReader.threshold = 15
-    WeatherMapReader.WeatherMapReader.setMapes()
+    WeatherMapes.WeatherMapContainer.days = range(6, 11)
+    WeatherMapes.WeatherMapContainer.threshold = 15
+    WeatherMapes.WeatherMapContainer.initWeatherMapes()
     middle = time.time()
     print("time for read data: %f second" % (middle - start))
 
     # save data
     sub_csv = pd.DataFrame(columns=['target', 'date_id', 'time', 'xid', 'yid'])
     for day in range(6, 11):
-        reader = WeatherMapReader.WeatherMapReader(day, 3)
-        daymaps = reader.getMaps()
+        reader = WeatherMapes.WeatherMapContainer(day, 3)
+        daymaps = reader.getWeatherMapes()
         # 各站时间的最优策略
         timeMap = TimePickStrategy.decideTimePickStrategy(daymaps)
         for target in range(1, 11):

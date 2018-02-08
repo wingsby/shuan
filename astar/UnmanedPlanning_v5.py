@@ -17,7 +17,7 @@ import Tools
 from astar.BackRestartModel import BackRestartModel
 
 sys.path.append(os.path.abspath("F\\pywork\\astar"))
-from astar import WeatherMapReader, HashAstar
+from astar import WeatherMapes, HashAstar
 from astar.LocalOptimalModel import LocalOptimalModel
 
 
@@ -143,11 +143,11 @@ if __name__ == "__main__":
     city_array = city.values - 1
 
     # 读取weather map
-    WeatherMapReader.WeatherMapReader.fileName = filePath + "ensemble_201802.csv"
+    WeatherMapes.WeatherMapContainer.fileName = filePath + "ensemble_201802.csv"
     # WeatherMapReader.WeatherMapReader.fileName = filePath + "input\\ForecastDataforTesting_ensmean.csv"
-    WeatherMapReader.WeatherMapReader.days = range(6, 11)
-    WeatherMapReader.WeatherMapReader.threshold = 15
-    WeatherMapReader.WeatherMapReader.setMapes()
+    WeatherMapes.WeatherMapContainer.days = range(6, 11)
+    WeatherMapes.WeatherMapContainer.threshold = 15
+    WeatherMapes.WeatherMapContainer.initWeatherMapes()
     backStep = 2
 
     middle = time.time()
@@ -156,8 +156,8 @@ if __name__ == "__main__":
     # save data
     sub_csv = pd.DataFrame(columns=['target', 'date_id', 'time', 'xid', 'yid'])
     for day in [6]:  # range(6,11):
-        reader = WeatherMapReader.WeatherMapReader(day, 3)
-        daymaps = reader.getMaps()
+        reader = WeatherMapes.WeatherMapContainer(day, 3)
+        daymaps = reader.getWeatherMapes()
         for target in [4]:  # range(1,11):
             onepath = findPath(city_array[0][1], city_array[0][2], \
                                city_array[target][1], city_array[target][2], \

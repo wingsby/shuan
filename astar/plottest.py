@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 
 
+
 if __name__ == '__main__':
         # plt.bar(left=0, height=1)
         worldMap = np.zeros((1000, 1000))
