@@ -75,7 +75,7 @@ def read_data(fname, head):
 #         return maps
 
 
-def is_crash(path, weather):
+def is_crash(path, weather,date,target):
     """判断飞机是否坠毁"""
     for x, y, time in path.loc[:, ['xid', 'yid', 'time']].values:
         hour = int(time.split(':')[0])
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     for date in days:  # 5
         # todo change date for input data (weather)
         oneMap = WeatherMapContainer.getWeatherMapes(date)
-        Tools.drawMap(oneMap[0])
+        # Tools.drawMap(oneMap[0])
         print()
 
 
@@ -128,7 +128,7 @@ if __name__ == "__main__":
             if tmpTime < 0 or tmpTime > 18 * 60:  # 超时做坠毁处理
                 ftime += 24 * 60
                 crashNum += 1
-            elif is_crash(onepath, oneMap):
+            elif is_crash(onepath, oneMap,date,tar):
                 ftime += 24 * 60
                 crashNum += 1
             else:

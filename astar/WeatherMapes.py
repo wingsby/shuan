@@ -7,7 +7,7 @@ from astar import Tools
 
 
 class WeatherMapContainer:
-    threshold = 14
+    threshold = 15
     rthre = 4
     __mapes = dict()
     __weatherMapes = dict()

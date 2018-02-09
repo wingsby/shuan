@@ -17,6 +17,7 @@ def make_path(node):
         node = node.parent
     return path[::-1]
 
+
 def make_nodepath(node):
     """根据节点绘制路径"""
     path = []
@@ -34,6 +35,7 @@ def mixedMaps(node, range, maps):
         mixMap[x, y] = (maps[idx])[x, y]
     return mixMap
 
+
 # 最近的步数采用当前时间,往前再多看一个小时，然后终点前都为无障碍
 def endValidMixedMaps(node, maps, stime):
     minute = node.cost % 30 * 2 + stime % 100
@@ -41,27 +43,28 @@ def endValidMixedMaps(node, maps, stime):
     if minute >= 60:
         minute -= 60
         hour += 1
-    idx=hour-3
-    range=(60-minute)/2
+    idx = hour - 3
+    range = (60 - minute) / 2
     mixMap = copy.copy(maps[idx])
     mixMap[:, :] = 0
-    if idx+1<len(maps):
-        zone = findCloseZone(node, range+30, maps[idx+1])
+    if idx + 1 < len(maps):
+        zone = findCloseZone(node, range + 30, maps[idx + 1])
         for [x, y] in zone:
-            mixMap[x, y] = (maps[idx+1])[x, y]
+            mixMap[x, y] = (maps[idx + 1])[x, y]
     zone1 = findCloseZone(node, range, maps[idx])
     for [x, y] in zone1:
         mixMap[x, y] = (maps[idx])[x, y]
     return mixMap
 
-#寻找Manhattan距离为range的区域
+
+# 寻找Manhattan距离为range的区域
 def findCloseZone(node, steps, map):
     if node.x >= 0:
         x0 = node.x - steps
     else:
         x0 = 0
     if node.x >= len(map) - steps:
-        x1 = len(map)-1
+        x1 = len(map) - 1
     else:
         x1 = node.x + steps
 
@@ -70,7 +73,7 @@ def findCloseZone(node, steps, map):
     else:
         y0 = 0
     if node.y >= len(map[0]) - steps:
-        y1 = len(map[0])-1
+        y1 = len(map[0]) - 1
     else:
         y1 = node.y + steps
 
@@ -87,21 +90,23 @@ def ManhattanDistance(x0, y0, x1, y1):
     return dis
 
 
-def drawRoute(worldMap,node,startPoint):
+def drawRoute(worldMap, node, startPoint):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.imshow(worldMap)
-    plt.scatter(node.y, node.x, marker='X')
+    plt.scatter(node.y, node.x, marker='X', s=2)
     if node is None:
         print("failure")
     else:
-        curNode = node.parent
+        curNode = copy.copy(node)
+        # curNode = node.parent
         while curNode.parent:
             plt.scatter(curNode.y, curNode.x, s=5)
             curNode = curNode.parent
 
-    plt.scatter(startPoint.y, startPoint.x, marker='s')
+    plt.scatter(startPoint.y, startPoint.x, marker='s', s=2)
     plt.show()
+
 
 def drawMap(worldMap):
     fig = plt.figure()
@@ -119,3 +124,14 @@ def drawMap(worldMap):
     # plt.scatter(startPoint.y, startPoint.x, marker='s')
     plt.show()
 
+
+def sortAsLength(adict):
+    items = adict.values()
+    items.sort(key=lambda x: len(x))
+    i = 0
+    res = []
+    for item in items:
+        for key in adict:
+            if adict.get(key) == item:
+                res.append(key)
+    return res

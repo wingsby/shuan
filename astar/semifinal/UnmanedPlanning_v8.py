@@ -133,9 +133,9 @@ def collectFailNodes(node, shour, sminute, daymaps):
         if hour > 20:
             # 超时
             return None, False
-        if (xid == 94 and yid == 243):
-            print()
-        if daymaps[hour - 3][xid - 1, yid - 1] > 0:
+        # if (xid == 94 and yid == 243):
+        #     print()
+        if daymaps[hour - 3][xid, yid] > 0:
             nodelist.append(path[index])
         index += 1
     if len(nodelist) > 0:
@@ -151,12 +151,18 @@ def failNodeRePlan(sx, sy, ex, ey, fmap, target, daymaps, day, successMap):
     else:
         sumap = dict()
     cost = (abs(sx - ex) + abs(sy - ey)) * 2
+    mintime = 9999
+    minlen = 9999
+    for stime in fmap:
+        if minlen > len(fmap.get(stime)):
+            minlen = len(fmap.get(stime))
+            mintime = stime
     for stime in fmap:
         addhour = int(np.math.ceil((cost + stime % 100) / 60.))
         ehour = stime / 100 + addhour
         if ehour >= 21:
             continue
-        if (daymaps[ehour - 3])[ex - 1][ey - 1] == 0:
+        if (daymaps[ehour - 3])[ex][ey] == 0 and (len(fmap.get(stime)) < 10 or mintime == stime):
             # first 序列
             node = failNodePathPlaning(sx, sy, ex, ey, target, day, daymaps, stime)
             if node:
@@ -164,6 +170,16 @@ def failNodeRePlan(sx, sy, ex, ey, fmap, target, daymaps, day, successMap):
                     sumap[target].append((node, stime))
                 else:
                     sumap[target] = [(node, stime)]
+        else:
+            if ehour < 20:
+                if (daymaps[ehour - 3])[ex][ey] == 0 and (daymaps[ehour - 2])[ex][ey] == 0 and len(
+                        fmap.get(stime)) < 30:
+                    node = failNodePathPlaning(sx, sy, ex, ey, target, day, daymaps, stime)
+                    if node:
+                        if target in sumap:
+                            sumap[target].append((node, stime))
+                        else:
+                            sumap[target] = [(node, stime)]
     successMap[day] = sumap
 
 
@@ -189,11 +205,24 @@ def failNodePathPlaning(sx, sy, ex, ey, target, day, daymaps, stime):
         # Tools.endValidMixedMaps()
         brm = BackRestartModel(failNode, endPoint, daymaps, stime)
         brm_node = brm.doBackAndPlan()
+        # print(brm_node.cost)
         if not brm_node:
             return None
-        if brm_node.__eq__(endPoint):
-            return brm_node
-        failNode = checkFailNodes(brm_node)
+        shour = stime / 100
+        sminute = stime % 100
+        failNode, flag = checkFailNodes(brm_node, shour, sminute)
+        if flag:
+            if brm_node.__eq__(endPoint):
+                return brm_node
+        if not failNode:
+            return None
+        else:
+            shour = shour + failNode.cost / 100
+            sminute = sminute + failNode.cost % 100 * 2
+            if sminute >= 60:
+                sminute -= 60
+                shour += 1
+                stime = shour * 100 + sminute
 
 
 def checkFailNodes(node, shour, sminute):
@@ -208,7 +237,7 @@ def checkFailNodes(node, shour, sminute):
             minute -= 60
         if hour > 20:
             return None, False
-        if daymaps[hour - 3][xid - 1, yid - 1] > 0:
+        if daymaps[hour - 3][xid, yid] > 0:
             return path[index], False
         index += 1
     return None, True
@@ -227,17 +256,16 @@ if __name__ == "__main__":
     WeatherMapes.WeatherMapContainer.fileName = filePath + Commons.subPath + Commons.ensemblePath
     # WeatherMapReader.WeatherMapReader.fileName = filePath + "input\\ForecastDataforTesting_ensmean.csv"
     WeatherMapes.WeatherMapContainer.days = days
-    WeatherMapes.WeatherMapContainer.threshold = 14
+    WeatherMapes.WeatherMapContainer.threshold = 15
     WeatherMapes.WeatherMapContainer.initWeatherMapes()
     middle = time.time()
     print("time for read data: %f second" % (middle - start))
     # save data
     sub_csv = pd.DataFrame(columns=['target', 'date_id', 'time', 'xid', 'yid'])
-
     stimeMap, etimeMap = ValidTime.getTime()
     successMap = dict()
     failMap = dict()
-    for target in range(1, 11):
+    for target in Commons.targets:
         for day in days:
             daymaps = WeatherMapes.WeatherMapContainer.getWeatherMapes(day)
             # 各站时间的最优策略
@@ -245,39 +273,45 @@ if __name__ == "__main__":
             flag = PathPlaning(int(city_array[0][1]), int(city_array[0][2]), \
                                int(city_array[target][1]), int(city_array[target][2]), \
                                daymaps, successMap, failMap, day, target, stimeMap, etimeMap)
-            #     print()
-            # print()
     third = time.time()
     print("No weather A star costing: %f second" % (third - middle))
     # key=100*day+target
     cnt = 0
+    # todo
     for key in failMap:
         fmap = failMap.get(key)
+        # if successMap
         target = key % 100
+        tday = key / 100
+        if tday in successMap:
+            if successMap.get(tday):
+                if target in successMap.get(tday):
+                    continue
         cnt += 1
         if len(fmap) > 0:
-            tday = key / 100
             daymaps = WeatherMapes.WeatherMapContainer.getWeatherMapes(tday)
             failNodeRePlan(int(city_array[0][1]), int(city_array[0][2]), int(city_array[target][1]),
                            int(city_array[target][2]), fmap, target, daymaps, tday, successMap)
-            print("replan A star finished %d\%" % cnt / len(failMap) * 100)
+            print("replan A star finished %d" % (cnt / len(failMap) * 100))
     fourth = time.time()
     print("replan A star costing: %f second" % (fourth - third))
+    # 优先次数少的
     # 分配各日时间安排，同一日优先时间长的，同一城市优先步数少的
     # skey=day
     # 每日安排，只有一个
     finalMap = dict()
+
     for skey in successMap:
         sumap = successMap.get(skey)
         dayFinal = dict()
         # todo 按长度排序
-        for target in Commons.cityorder:
+        for target in Tools.sortAsLength(sumap):
             if target in sumap:
                 tmplist = sumap[target]
             else:
                 tmplist = []
             minlen = 9999
-            mintime = 9999;
+            mintime = 9999
             minnode = None
             tnode = None
             ttime = None
@@ -305,28 +339,32 @@ if __name__ == "__main__":
             if mintime < 9999:
                 dayFinal[target] = (minnode, mintime, target)
             else:
-                # 有错的只赋值一格
-                wrong = 1920
-                for (tnode, ttime, ttarget) in dayFinal.values():
-                    if wrong == ttime:
-                        wrong += 10
-                dayFinal[target] = (Node(int(city_array[target][1]), int(city_array[target][2])), wrong, target)
+                pass
+                # # 有错的只赋值一格
+                # wrong = 1920
+                # for (tnode, ttime, ttarget) in dayFinal.values():
+                #     if wrong == ttime:
+                #         wrong += 10
+                # dayFinal[target] = (Node(int(city_array[target][1]), int(city_array[target][2])), wrong, target)
         finalMap[skey] = dayFinal
 
     # # 写文件
-    for target in range(1, 11):
+    for target in Commons.targets:
         for day in days:
             dayFinal = finalMap.get(day)
             if not dayFinal:
                 continue
-            (node, stime, target) = dayFinal.get(target)
-            if node:
-                onepath = Tools.make_path(node)
-                sub_df = oneSub(np.array(onepath) + 1, target, day, stime)
-                # wname = ("%s\\output\\out_%d_%d.csv" % (filePath, day, target))
-                sub_csv = pd.concat([sub_csv, sub_df], axis=0)
-            else:
-                print("wrong on %d !" % target)
+            try:
+                (node, stime, target) = dayFinal.get(target)
+                if node:
+                    onepath = Tools.make_path(node)
+                    sub_df = oneSub(np.array(onepath) + 1, target, day, stime)
+                    # wname = ("%s\\output\\out_%d_%d.csv" % (filePath, day, target))
+                    sub_csv = pd.concat([sub_csv, sub_df], axis=0)
+                else:
+                    print("wrong on %d !" % target)
+            except Exception as a:
+                a.message
 
     # 输出数据
     wname = ("%s\\%s\\%s" % (filePath, Commons.subPath, Commons.outPutPath))

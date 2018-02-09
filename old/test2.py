@@ -17,9 +17,22 @@ import copy
 #
 #
 # fun(array)
+adict=dict()
+adict[1]=[3,5,6]
+adict[2]=[22,1]
+adict[3]=[3,3,3,3,3,3]
 
-a=dict()
-a[0]=(3,'10')
-a[1]=(7,"111")
-if 3 in a.values()[:,0]:
-    print(3)
+items = adict.values()
+items.sort(key=lambda x: len(x))
+res=dict()
+
+
+# c=[value for value in items]
+
+# print(c)
+
+def sort_by_value(d):
+    items=d.items()
+    backitems=[[v[1],v[0]] for v in items]
+    backitems.sort()
+    return [ backitems[i][1] for i in range(0,len(backitems))]
