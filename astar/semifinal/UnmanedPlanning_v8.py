@@ -217,12 +217,14 @@ def failNodePathPlaning(sx, sy, ex, ey, target, day, daymaps, stime):
         if not failNode:
             return None
         else:
+            if failNode.cost==0:
+                return None
             shour = shour + failNode.cost / 100
             sminute = sminute + failNode.cost % 100 * 2
             if sminute >= 60:
                 sminute -= 60
                 shour += 1
-                stime = shour * 100 + sminute
+            stime = shour * 100 + sminute
 
 
 def checkFailNodes(node, shour, sminute):
